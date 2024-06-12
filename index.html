@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photo Editor</title>
+    <style>
+
+
+  /* #canvas {
+    display: block;
+    margin: 0 auto;
+    border: 1px solid #333;
+    cursor: crosshair;
+  } */
+
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+  }
+  h1 {
+    color: #333;
+    margin-top: 20px;
+  }
+  #canvas-container {
+    display: flex; /* Use flexbox layout */
+    flex-direction: column; /* Arrange items vertically */
+    align-items: center; /* Center items horizontally */
+    margin: 20px auto;
+  }
+  #canvas {
+    border: 1px solid #333;
+    cursor: crosshair;
+  }
+  #colorPicker {
+    display: block;
+    margin: 10px auto;
+    padding: 8px 12px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    background-color: #cd9a9a;
+    border: 1px solid #ccc;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.1);
+  }
+
+
+
+
+  button {
+    margin: 5px; /* Add margin between buttons */
+    padding: 8px 12px;
+    font-size: 16px;
+    cursor: pointer;
+    border: 1px solid black;
+    border-radius: 4px;
+    /* background-color: #c6ccc6; */
+    /* color: rgb(18, 17, 17); */
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    background-color: #45a049;
+  }
+ 
+ 
+
+
+
+
+
+
+
+
+    </style>
+  </head>
+
+
+
+  <body>
+    
+    <h1>Photo Editor</h1>
+
+    
+<div id="canvas-container">
+
+    <input type="file" id="fileInput" />
+    <input type="color" id="colorPicker" value="#ff0000" />
+    <canvas id="canvas" width="500" height="500"></canvas>
+<div>
+    <button id="drawCircle">Add Circle</button>
+    <button id="drawSquare">Add Square</button>
+    <button id="save" disabled>Save</button>
+    <button id="hide">Hide</button>
+    <button id="show">Show</button>
+    <button id="erase">Erase</button>
+
+</div>
+</div>
+
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      let photo;
+      let shapes = [];
+      let hiddenShapes = [];
+      let selectedShape = null;
+      let eraseMode = false;
+
+
+
+      function drawShapes() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(photo, 0, 0, canvas.width, canvas.height);
+        shapes.forEach((shape) => {
+          if (!hiddenShapes.includes(shape)) {
+            ctx.beginPath();
+            if (shape.type === "circle") {
+              ctx.arc(shape.x, shape.y, shape.radius, 0, 2 * Math.PI);
+              ctx.strokeStyle = shape.color;
+              ctx.lineWidth = shape.lineWidth;
+            } else if (shape.type === "square") {
+              ctx.rect(
+                shape.x - shape.size / 2,
+                shape.y - shape.size / 2,
+                shape.size,
+                shape.size
+              );
+              ctx.strokeStyle = shape.color;
+              ctx.lineWidth = shape.lineWidth;
+            }
+            ctx.stroke();
+          }
+        });
+      }
+
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", function (event) {
+          const file = event.target.files[0];
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            const img = new Image();
+            img.onload = function () {
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              photo = img;
+              document.getElementById("save").disabled = false;
+              shapes = [];
+              hiddenShapes = [];
+              drawShapes();
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+
+      function clearDrawingListeners() {
+        canvas.removeEventListener("mousedown", circleMouseDownHandler);
+        canvas.removeEventListener("mousedown", squareMouseDownHandler);
+        canvas.removeEventListener("click", eraseHandler);
+      }
+
+      function circleMouseDownHandler(event) {
+        const x = event.offsetX;
+        const y = event.offsetY;
+        const lineWidth = 5;
+        const color = document.getElementById("colorPicker").value;
+        const newCircle = {
+          x,
+          y,
+          radius: 30,
+          color,
+          lineWidth,
+          type: "circle",
+        };
+        shapes.push(newCircle);
+        selectedShape = newCircle;
+        drawShapes();
+        const mouseMoveHandler = function (event) {
+          const dx = event.offsetX - x;
+          const dy = event.offsetY - y;
+          selectedShape.radius = Math.sqrt(dx * dx + dy * dy);
+          drawShapes();
+        };
+        const mouseUpHandler = function () {
+          canvas.removeEventListener("mousemove", mouseMoveHandler);
+          canvas.removeEventListener("mouseup", mouseUpHandler);
+        };
+        canvas.addEventListener("mousemove", mouseMoveHandler);
+        canvas.addEventListener("mouseup", mouseUpHandler);
+      }
+      function squareMouseDownHandler(event) {
+        const x = event.offsetX;
+        const y = event.offsetY;
+        const lineWidth = 5;
+        const color = document.getElementById("colorPicker").value;
+        const newSize = 60;
+        const newSquare = {
+          x,
+          y,
+          size: newSize,
+          color,
+          lineWidth,
+          type: "square",
+        };
+        shapes.push(newSquare);
+        selectedShape = newSquare;
+        drawShapes();
+        const mouseMoveHandler = function (event) {
+          const dx = event.offsetX - x;
+          const dy = event.offsetY - y;
+          selectedShape.size = Math.max(Math.abs(dx), Math.abs(dy)) * 2;
+          drawShapes();
+        };
+        const mouseUpHandler = function () {
+          canvas.removeEventListener("mousemove", mouseMoveHandler);
+          canvas.removeEventListener("mouseup", mouseUpHandler);
+        };
+        canvas.addEventListener("mousemove", mouseMoveHandler);
+        canvas.addEventListener("mouseup", mouseUpHandler);
+      }
+      document
+        .getElementById("drawCircle")
+        .addEventListener("click", function () {
+          clearDrawingListeners();
+          canvas.addEventListener("mousedown", circleMouseDownHandler);
+        });
+      document
+        .getElementById("drawSquare")
+        .addEventListener("click", function () {
+          clearDrawingListeners();
+          canvas.addEventListener("mousedown", squareMouseDownHandler);
+        });
+
+      canvas.addEventListener("click", function (event) {
+        const x = event.offsetX;
+        const y = event.offsetY;
+        const clickedShapeIndex = shapes.findIndex((shape) => {
+          if (shape.type === "circle") {
+            return (
+              Math.sqrt((x - shape.x) ** 2 + (y - shape.y) ** 2) <= shape.radius
+            );
+          } else if (shape.type === "square") {
+            return (
+              Math.abs(x - shape.x) <= shape.size / 2 &&
+              Math.abs(y - shape.y) <= shape.size / 2
+            );
+          }
+        });
+
+        if (clickedShapeIndex !== -1) {
+          const clickedShape = shapes[clickedShapeIndex];
+          if (hiddenShapes.includes(clickedShape)) {
+            hiddenShapes.splice(hiddenShapes.indexOf(clickedShape), 1); // Show the clicked shape
+            drawShapes();
+          }
+        }
+      });
+
+      document.getElementById("save").addEventListener("click", function () {
+        const imgData = canvas.toDataURL("image/jpeg");
+        const link = document.createElement("a");
+        let fileName = document.getElementById("fileInput").value;
+        const fileNameWithoutExtension = fileName
+          .replace(/^.*[\\\/]/, "")
+          .replace(/\.[^/.]+$/, "");
+        link.href = imgData;
+        link.download = fileNameWithoutExtension + "_edited.jpg";
+        link.click();
+        this.disabled = true;
+      });
+      document.getElementById("hide").addEventListener("click", function () {
+        hiddenShapes = shapes.slice(); // Hide all shapes
+        drawShapes();
+      });
+      document.getElementById("show").addEventListener("click", function () {
+        hiddenShapes = []; // Show all shapes
+        drawShapes();
+      });
+      
+
+
+      document.getElementById("erase").addEventListener("click", function () {
+    clearDrawingListeners();
+    eraseMode = true;
+    canvas.addEventListener("click", eraseHandler);
+  });
+
+  function eraseHandler(event) {
+    if (eraseMode) {
+      const x = event.offsetX;
+      const y = event.offsetY;
+      for (let i = shapes.length - 1; i >= 0; i--) {
+        const shape = shapes[i];
+        if (shape.type === "circle") {
+          const distance = Math.sqrt((x - shape.x) ** 2 + (y - shape.y) ** 2);
+          if (distance <= shape.radius) {
+            shapes.splice(i, 1); // Remove the circle
+            drawShapes();
+            break; // Exit loop after removing the circle
+          }
+        } else if (shape.type === "square") {
+          const halfSize = shape.size / 2;
+          if (Math.abs(x - shape.x) <= halfSize && Math.abs(y - shape.y) <= halfSize) {
+            shapes.splice(i, 1); // Remove the square
+            drawShapes();
+            break; // Exit loop after removing the square
+          }
+        }
+      }
+    }
+  }
+
+
+
+
+
+      
+    </script>
+  </body>
+</html>
